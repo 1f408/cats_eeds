@@ -12,6 +12,7 @@ import (
 	"github.com/lestrrat-go/strftime"
 
 	"github.com/1f408/cats_eeds/upath"
+	"github.com/1f408/cats_eeds/view/internal/links"
 )
 
 type FileStamp struct {
@@ -86,14 +87,7 @@ func (dvs *DirViewStamp) Get(dir_rpath string, use_cwd bool) []*FileStamp {
 				}
 			}
 
-			p := n
-			switch p {
-			case "./":
-			case "../":
-			default:
-				p = "./" + p
-			}
-
+			p := links.EncodeFileURL(n)
 			ts := dvs.tf.FormatString(fi.Info.ModTime())
 			uniq[n] = &FileStamp{Name: n, Path: p, Stamp: ts}
 		}
@@ -126,8 +120,9 @@ func (dvs *DirViewStamp) DirModTime(rel_dir string) (time.Time, bool) {
 		if !dfi.IsDir() {
 			continue
 		}
+
 		found = true
-		if mod := dfi.ModTime(); dir_mod.IsZero() || dir_mod.After(mod) {
+		if mod := dfi.ModTime(); dir_mod.IsZero() || dir_mod.Before(mod) {
 			dir_mod = mod
 		}
 	}
@@ -225,6 +220,19 @@ func (dvs *DirViewStamp) get_files(top_dir, rel_dir string) ([]*pathInfo, error)
 }
 
 func name_less(slice []*FileStamp, i, j int) bool {
+	if slice[i].Name == "./" {
+		return true
+	}
+	if slice[j].Name == "./" {
+		return false
+	}
+	if slice[i].Name == "../" {
+		return true
+	}
+	if slice[j].Name == "../" {
+		return false
+	}
+
 	if rpath.IsDir(slice[i].Name) == rpath.IsDir(slice[j].Name) {
 		return path.Clean(slice[i].Name) < path.Clean(slice[j].Name)
 	}
