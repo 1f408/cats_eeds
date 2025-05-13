@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"unicode"
 
+	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"golang.org/x/text/unicode/norm"
 )
 
 type GfmIDs struct {
+	parser goldmark.Markdown
 	values map[string]bool
 }
 
@@ -18,15 +20,16 @@ func init() {
 	AutoIdsMap["gfm"] = NewGfmIDs
 }
 
-func NewGfmIDs() parser.IDs {
+func NewGfmIDs(p goldmark.Markdown) parser.IDs {
 	return &GfmIDs{
+		parser: p,
 		values: map[string]bool{},
 	}
 }
 
 func (ids *GfmIDs) toText(value []byte) []byte {
 	var txt_buf bytes.Buffer
-	err := convertMdToText(value, &txt_buf)
+	err := convertMdToText(ids.parser, value, &txt_buf)
 	if err != nil {
 		return []byte("auto")
 	}

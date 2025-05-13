@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -18,33 +19,45 @@ import (
 	"github.com/l4go/task"
 	"github.com/l4go/unifs"
 
+	"github.com/1f408/cats_eeds/frontmatter"
+	"github.com/1f408/cats_eeds/internal/perenc"
 	"github.com/1f408/cats_eeds/md2html"
-
 	"github.com/1f408/cats_eeds/view/internal/dirview"
 	"github.com/1f408/cats_eeds/view/internal/etag"
 	"github.com/1f408/cats_eeds/view/internal/htpath"
 	"github.com/1f408/cats_eeds/view/internal/links"
+	"github.com/1f408/cats_eeds/view/internal/tmplext"
 )
 
-type tmplOptions struct {
-	ThemeStyle    string
-	DirectoryView bool
-	LocationNavi  string
-}
 type tmplParam struct {
 	Options  *tmplOptions
 	Markdown *md2html.MdConfig
+	SmCard   *md2html.SmCardParam
 
 	Title     string
 	Top       string
 	Lib       string
 	Path      string
 	PathLinks []links.Link
+	LinkMenu  []md2html.Link
 	Text      string
 	TextType  string
 	Toc       string
 	Files     []*dirview.FileStamp
 	IsOpen    bool
+
+	CustomParam md2html.CustomParam
+}
+
+type tmplOptions struct {
+	ThemeStyle   string
+	PageStyle    string
+	PrintSizeCss string
+	PrintZoom    float32
+
+	LocationNavi  string
+	TocNavi       string
+	DirectoryView bool
 }
 
 func (mdv *MdView) setCacheHeader(header Setter) {
@@ -91,14 +104,15 @@ func (mdv *MdView) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mdv.writeView(r.URL.Path, r.Header, NewHttpWriter(w, r))
+	req_path := rpath.Clean("/" + r.URL.Path)
+	mdv.writeView(req_path, r.Header, NewHttpWriter(w, r))
 }
 
 func (mdv *MdView) Dump(out, eout io.Writer, req_path string) {
-	req_path = rpath.Join("/", req_path)
 	h := &DummyGetter{}
 	w := NewDumpWrite(out, eout)
 
+	req_path = rpath.Clean("/" + req_path)
 	mdv.writeView(req_path, h, w)
 }
 
@@ -108,6 +122,16 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 	htreq, ht_err := htpath.New(mdv.SystemFS, mdv.DocumentRoot.String(), req_path, mdv.IndexName)
 	switch {
 	case ht_err == nil:
+	case ht_err == htpath.ErrInvalidDirRequest:
+		if !mdv.DirectoryRedirection {
+			w.Error("404 invalid directory URL", http.StatusNotFound)
+			return
+		}
+
+		p := rpath.SetDir(rpath.Join(mdv.UrlTopPath, req_path))
+		w_header.Set("Location", perenc.EncodeUrlPath(p))
+		w.Error("307 use the directory URL", http.StatusTemporaryRedirect)
+		return
 	case ht_err == htpath.ErrBadRequestType:
 		w.Error("400 bad request path", http.StatusBadRequest)
 		return
@@ -143,9 +167,97 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 		return
 	}
 
+	mod_time := htreq.ModTime()
+	if mod_time.Before(mdv.ConfigModTime) {
+		mod_time = mdv.ConfigModTime
+	}
+	last_mod := htreq.LastMod()
+
+	tag := mdv.MakeEtag(mod_time)
+	if !isModified(r_header, tag, mod_time) {
+		w_header.Set("Last-Modified", last_mod)
+		w_header.Set("Etag", tag)
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	var raw_bin []byte
+	var fm_param *md2html.FrontMatterParam = &md2html.FrontMatterParam{}
+	if has_doc {
+		var rd_err error
+		raw_bin, rd_err = unifs.ReadFile(mdv.SystemFS, htreq.FullDoc())
+		if rd_err != nil {
+			w.Error("500 document file read error",
+				http.StatusInternalServerError)
+			return
+		}
+
+		if (proc_type == "md" ||
+			proc_type == "text" && mdv.CustomPageConfig.FrontMatter.UsedForText) &&
+			mdv.CustomPageConfig.FrontMatter.IsEnabled() {
+
+			body, fmp, fm_err := mdv.CustomPageConfig.FrontMatter.TrimAndParse(raw_bin)
+			switch fm_err {
+			case nil:
+				if fmp == nil {
+					w.Error("500 Frontmatter parse error", http.StatusInternalServerError)
+					return
+				}
+				raw_bin = body
+				fm_param = fmp
+			case frontmatter.ErrNotFound:
+			default:
+				w.Error("500 Frontmatter error: "+fm_err.Error(),
+					http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	theme_style := mdv.ThemeStyle
+	if fm_param.ThemeStyle != "" {
+		theme_style = fm_param.ThemeStyle
+	}
+
+	page_style := mdv.PageStyle
+	if fm_param.PageStyle != "" {
+		page_style = fm_param.PageStyle
+	}
+	style_tmpl := ""
+	if page_style != "" {
+		style_tmpl = "style_" + page_style + ".tmpl"
+	}
+
+	page_size_css := mdv.PrintSizeCss
+	if fm_param.PaperType != "" {
+		css, ok := mdv.PrintPaperMapping.GetCss(fm_param.PaperType)
+		if ok {
+			page_size_css = css
+		}
+	}
+	print_zoom := mdv.PrintZoom
+	if fm_param.PrintZoom > 0 {
+		print_zoom = fm_param.PrintZoom
+	}
+
+	loc_navi := mdv.LocationNavi
+	if fm_param.LocationNavi != "" {
+		loc_navi = fm_param.LocationNavi
+	}
+
+	toc_navi := mdv.TocNavi
+	if fm_param.TocNavi != "" {
+		toc_navi = fm_param.TocNavi
+	}
+
+	dir_view_mode := mdv.DirectoryViewMode
+	if fm_param.DirectoryViewMode != "" {
+		dir_view_mode = fm_param.DirectoryViewMode
+	}
+
 	dir_view := true
 	is_open := is_dir
-	switch mdv.DirectoryViewMode {
+	switch dir_view_mode {
 	case "none":
 		dir_view = false
 		is_open = false
@@ -167,35 +279,35 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 		return
 	}
 
-	mod_time := htreq.ModTime()
-	if mod_time.Before(mdv.ConfigModTime) {
-		mod_time = mdv.ConfigModTime
-	}
-	last_mod := htreq.LastMod()
-
-	tag := mdv.MakeEtag(mod_time)
-	if !isModified(r_header, tag, mod_time) {
-		w_header.Set("Last-Modified", last_mod)
-		w_header.Set("Etag", tag)
-		w.WriteHeader(http.StatusNotModified)
+	tmpl, err := mdv.OriginTmpl.Clone()
+	if err != nil {
+		w.Error("503 service unavailable: "+err.Error(),
+			http.StatusServiceUnavailable)
 		return
-	}
-
-	var raw_bin []byte
-	if has_doc {
-		var rd_err error
-		raw_bin, rd_err = unifs.ReadFile(mdv.SystemFS, htreq.FullDoc())
-		if rd_err != nil {
-			w.Error("500 document file read error",
-				http.StatusInternalServerError)
-			return
-		}
 	}
 
 	var doc_bin []byte
 	var title_bin []byte
 	var toc_bin []byte
 	req_abs_path := rpath.Join(mdv.UrlTopPath, req_rpath)
+
+	with_title_param := false
+	title_bin = []byte("View: " + req_abs_path)
+	if fm_param.Title != "" {
+		with_title_param = true
+		title_bin = []byte(fm_param.Title)
+	}
+
+	var sm_card *md2html.SmCardParam = nil
+	if mdv.CustomPageConfig.SmCard.Enabled {
+		sm_card = &md2html.SmCardParam{}
+		*sm_card = fm_param.SmCard
+		sm_card.Fix(&mdv.CustomPageConfig.SmCard, req_abs_path)
+
+		if sm_card.Title == "" {
+			sm_card.Title = string(title_bin)
+		}
+	}
 
 	switch proc_type {
 	default:
@@ -204,20 +316,36 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 	case "dir":
 		doc_bin = []byte{}
 		toc_bin = []byte{}
-		title_bin = []byte("View: " + req_abs_path)
 	case "text":
 		doc_bin = raw_bin
 		toc_bin = []byte{}
-		title_bin = []byte("View: " + req_abs_path)
 	case "md":
 		var cerr error
-		doc_bin, toc_bin, title_bin, cerr = mdv.Md2Html.Convert(raw_bin)
+		var md_title_bin []byte
+
+		m2h := mdv.Md2Html
+		if fm_param.MarkdownConfig != "" {
+			name := fm_param.MarkdownConfig
+			if name[0] != '/' {
+				name = rpath.Join(rpath.Dir(htreq.FullDoc()), name)
+			}
+			if strings.HasPrefix(name, mdv.DocumentRoot.String()) {
+				if md_cfg, err := md2html.NewMdConfig(mdv.SystemFS, name); err == nil {
+					m2h = md2html.NewMd2Html(md_cfg)
+				}
+			}
+		}
+		doc_bin, toc_bin, md_title_bin, cerr = m2h.Convert(raw_bin)
 		if cerr != nil {
-			w.Error("500 conversion failed", http.StatusInternalServerError)
+			w.Error("500 conversion failed: "+cerr.Error(), http.StatusInternalServerError)
 			return
 		}
-		if len(title_bin) == 0 {
-			title_bin = []byte("View: " + req_abs_path)
+
+		if !with_title_param {
+			title_bin = md_title_bin
+			if sm_card != nil && sm_card.Title == "" {
+				sm_card.Title = string(md_title_bin)
+			}
 		}
 	}
 
@@ -226,29 +354,63 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 		f_list = mdv.DirViewStamp.Get(htreq.Dir(), !is_dir)
 	}
 
+	link_menu := []md2html.Link{}
+	if mdv.CustomPageConfig.LinkMenu.Default != nil {
+		link_menu = mdv.CustomPageConfig.LinkMenu.Default
+	}
+	if fm_param.LinkMenu != nil {
+		link_menu = fm_param.LinkMenu
+	}
+
+	custom_param := md2html.CustomParam{}
+	if mdv.CustomPageConfig.CustomParam.Default != nil {
+		custom_param = mdv.CustomPageConfig.CustomParam.Default
+	}
+	if fm_param.CustomParam != nil {
+		custom_param = fm_param.CustomParam
+	}
+
 	tmpl_param := tmplParam{
 		Options: &tmplOptions{
-			ThemeStyle:    mdv.ThemeStyle,
-			DirectoryView: dir_view,
-			LocationNavi:  mdv.LocationNavi,
+			ThemeStyle:    theme_style,
+			PageStyle:     page_style,
+			PrintSizeCss:  page_size_css,
+			PrintZoom:     print_zoom,
+			LocationNavi:  loc_navi,
+			TocNavi:       toc_navi,
+			DirectoryView: (dir_view_mode != "none"),
 		},
-		Markdown:  mdv.MarkdownConfig,
+		Markdown: mdv.MarkdownConfig,
+		SmCard:   sm_card,
+
 		Top:       mdv.UrlTopPath,
 		Lib:       mdv.UrlLibPath,
 		Path:      req_abs_path,
 		PathLinks: links.NewLinks(rpath.Join("/", req_rpath)),
+		LinkMenu:  link_menu,
 		Text:      string(doc_bin),
 		TextType:  text_type,
 		Title:     string(title_bin),
 		Toc:       string(toc_bin),
 		Files:     f_list,
 		IsOpen:    is_open,
+
+		CustomParam: custom_param,
 	}
 
+	tmpl = tmplLookups(tmpl, style_tmpl, mdv.MainTmplName)
+	if tmpl == nil {
+		w.Error("503 not found template", http.StatusServiceUnavailable)
+		return
+	}
+
+	tmpl_funcs := template.FuncMap{}
+	tmplext.AddDefaultFunc(tmpl_funcs, mdv.SystemFS, mdv.SvgIconPath)
+	tmpl = tmpl.Funcs(tmpl_funcs)
+
 	var buf bytes.Buffer
-	err := mdv.execTemplate(&buf, tmpl_param)
-	if err != nil {
-		w.Error("503 template execute error:"+err.Error(),
+	if e := tmpl.Execute(&buf, tmpl_param); e != nil {
+		w.Error("503 template execute error:"+e.Error(),
 			http.StatusServiceUnavailable)
 		return
 	}
@@ -260,46 +422,59 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 	buf.WriteTo(w)
 }
 
-func (mdv *MdView) execTemplate(w io.Writer, param interface{}) error {
-	tmpl, err := mdv.OriginTmpl.Clone()
-	if err != nil {
-		return err
+func tmplLookups(tmpl *template.Template, names ...string) *template.Template {
+	var tt *template.Template = nil
+	for _, n := range names {
+		if n != "" {
+			tt = tmpl.Lookup(n)
+			if tt != nil {
+				break
+			}
+		}
 	}
 
-	tmpl_funcs := template.FuncMap{
-		"once":      NewTmplOnce(),
-		"svg_icon":  mdv.TmplSvgIcon,
-		"file_type": TmplFileType,
-	}
-	tmpl = tmpl.Funcs(tmpl_funcs)
-
-	return tmpl.ExecuteTemplate(w, mdv.MainTmplName, param)
+	return tt
 }
 
 func (mdv *MdView) SumTemplate() ([]byte, error) {
+	tmpl, cerr := mdv.OriginTmpl.Clone()
+	if cerr != nil {
+		return nil, cerr
+	}
+	tmpl = tmpl.Lookup(mdv.MainTmplName)
+	if tmpl == nil {
+		return nil, fmt.Errorf("template: no template %q", mdv.MainTmplName)
+	}
+
 	tmpl_param := tmplParam{
 		Options: &tmplOptions{
 			ThemeStyle:    mdv.ThemeStyle,
-			DirectoryView: (mdv.DirectoryViewMode != "none"),
+			PageStyle:     mdv.PageStyle,
+			PrintSizeCss:  mdv.PrintSizeCss,
+			PrintZoom:     mdv.PrintZoom,
 			LocationNavi:  mdv.LocationNavi,
+			TocNavi:       mdv.TocNavi,
+			DirectoryView: (mdv.DirectoryViewMode != "none"),
 		},
 		Markdown:  mdv.MarkdownConfig,
 		Top:       mdv.UrlTopPath,
 		Lib:       mdv.UrlLibPath,
 		Path:      mdv.UrlTopPath,
 		PathLinks: links.NewLinks("/"),
+		LinkMenu:  nil,
 		Text:      "",
 		TextType:  "md",
 		Title:     "",
 		Toc:       "",
 		Files:     nil,
 		IsOpen:    false,
+
+		CustomParam: md2html.CustomParam{},
 	}
 
 	h_ctx := sha256.New()
-	err := mdv.execTemplate(h_ctx, tmpl_param)
-	if err != nil {
-		return nil, err
+	if e := tmpl.Execute(h_ctx, tmpl_param); e != nil {
+		return nil, e
 	}
 
 	return h_ctx.Sum(nil), nil
@@ -344,15 +519,13 @@ func (mdv *MdView) Serve(cc task.Canceller, lstn net.Listener) error {
 		mdv.SocketPath = addr.String()
 	}
 
-	srv := &http.Server{Addr: mdv.SocketPath}
+	srv := &http.Server{Addr: mdv.SocketPath, Handler: http.HandlerFunc(mdv.Handler)}
 	go func() {
 		select {
 		case <-cc.RecvCancel():
 		}
 		srv.Close()
 	}()
-
-	http.HandleFunc("/", mdv.Handler)
 
 	serr := srv.Serve(lstn)
 	switch serr {

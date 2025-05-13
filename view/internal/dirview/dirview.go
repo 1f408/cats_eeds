@@ -11,8 +11,8 @@ import (
 	"github.com/l4go/unifs"
 	"github.com/lestrrat-go/strftime"
 
+	"github.com/1f408/cats_eeds/internal/perenc"
 	"github.com/1f408/cats_eeds/upath"
-	"github.com/1f408/cats_eeds/view/internal/links"
 )
 
 type FileStamp struct {
@@ -87,7 +87,7 @@ func (dvs *DirViewStamp) Get(dir_rpath string, use_cwd bool) []*FileStamp {
 				}
 			}
 
-			p := links.EncodeFileURL(n)
+			p := perenc.EncodeUrlPath(n)
 			ts := dvs.tf.FormatString(fi.Info.ModTime())
 			uniq[n] = &FileStamp{Name: n, Path: p, Stamp: ts}
 		}
@@ -186,17 +186,15 @@ func (dvs *DirViewStamp) get_files(top_dir, rel_dir string) ([]*pathInfo, error)
 
 	if rel_dir != "/" {
 		pfi, perr := unifs.Stat(dvs.rt_fs, rpath.Dir(full_dir))
-		if perr != nil {
-			return nil, perr
+		if perr == nil {
+			rel_pdir := rpath.SetDir(rel_dir)
+			pd_lst = append(pd_lst,
+				&pathInfo{
+					Name: "../",
+					Path: rel_pdir,
+					Info: pfi,
+				})
 		}
-
-		rel_pdir := rpath.SetDir(rel_dir)
-		pd_lst = append(pd_lst,
-			&pathInfo{
-				Name: "../",
-				Path: rel_pdir,
-				Info: pfi,
-			})
 	}
 
 	for _, fi := range fi_lst {

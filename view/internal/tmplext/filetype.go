@@ -1,4 +1,4 @@
-package tmplview
+package tmplext
 
 import (
 	"path"

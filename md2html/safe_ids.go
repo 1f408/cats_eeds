@@ -5,28 +5,32 @@ import (
 	"fmt"
 	"unicode"
 
+	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"golang.org/x/text/unicode/norm"
 )
 
 type SafeIDs struct {
+	parser goldmark.Markdown
 	values map[string]bool
 }
 
 func init() {
+	AutoIdsMap[""] = NewSafeIDs
 	AutoIdsMap["safe"] = NewSafeIDs
 }
 
-func NewSafeIDs() parser.IDs {
+func NewSafeIDs(p goldmark.Markdown) parser.IDs {
 	return &SafeIDs{
+		parser: p,
 		values: map[string]bool{},
 	}
 }
 
 func (ids *SafeIDs) toText(value []byte) []byte {
 	var txt_buf bytes.Buffer
-	err := convertMdToText(value, &txt_buf)
+	err := convertMdToText(ids.parser, value, &txt_buf)
 	if err != nil {
 		return []byte("auto")
 	}

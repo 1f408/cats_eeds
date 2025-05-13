@@ -20,8 +20,9 @@ type MdViewConfig struct {
 	SocketPath   string
 	CacheControl string `toml:",omitempty"`
 
-	UrlTopPath string `toml:",omitempty"`
-	UrlLibPath string `toml:",omitempty"`
+	UrlTopPath           string `toml:",omitempty"`
+	UrlLibPath           string `toml:",omitempty"`
+	DirectoryRedirection bool   `toml:",omitempty"`
 
 	DocumentRoot upath.UPath
 	IndexName    string `toml:",omitempty"`
@@ -29,12 +30,15 @@ type MdViewConfig struct {
 	IconPath     upath.UPath `toml:",omitempty"`
 	MainTmpl     string      `toml:",omitempty"`
 
-	MimeExtTable   upath.Import[*mtable.MimeExtTable] `toml:",omitempty"`
-	MarkdownExt    []string                           `toml:",omitempty"`
-	MarkdownConfig upath.Import[*md2html.MdConfig]    `toml:",omitempty"`
+	MimeExtTable     upath.Import[*mtable.MimeExtTable]      `toml:",omitempty"`
+	MarkdownExt      []string                                `toml:",omitempty"`
+	MarkdownConfig   upath.Import[*md2html.MdConfig]         `toml:",omitempty"`
+	CustomPageConfig upath.Import[*md2html.CustomPageConfig] `toml:",omitempty"`
 
-	ThemeStyle   string `toml:",omitempty"`
+	ThemeStyle string `toml:",omitempty"`
+	PageStyle  string `toml:",omitempty"`
 	LocationNavi string `toml:",omitempty"`
+	TocNavi      string `toml:",omitempty"`
 
 	DirectoryViewMode       string
 	DirectoryViewRoots      []upath.UPath `toml:",omitempty"`

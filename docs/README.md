@@ -11,10 +11,11 @@
 
 以下のモジュール群が含まれています。
 
-- [view/mdview](../view/mdview) cats\_dogsの[cat\_mdview]のHTTPサーバハンドラ
-- [view/tmplview](../view/tmplview) cats\_dogsの[cat\_tmplview]のHTTPサーバハンドラ
+- [view/mdview](../view/mdview/) cats\_dogsの[cat\_mdview]のHTTPサーバハンドラ
+- [view/tmplview](../view/tmplview/) cats\_dogsの[cat\_tmplview]のHTTPサーバハンドラ
 - [md2html](../md2html/) cats\_dogsのMarkdownをHTMLに変換する機能を扱うモジュール
 - [authz](../authz/) cats\_dogsの[user\_map形式]ファイルでの認可処理ためのモジュール
 - [upath](../upath/) cats\_dogsの内部パス形式(OSパスの互換性問題を回避)を扱うモジュール
+- [frontmatter](../frontmatter/) ファイルからFrontMatterのテキストを切り出すだけのモジュール
 
 利用方法については、[cats\_dogs]、[cats\_pr\_dogs]のコードを参考にしてください。
