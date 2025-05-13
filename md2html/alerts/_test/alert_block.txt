@@ -1,0 +1,171 @@
+1
+//- - - - - - - - -//
+> [!NOTE]
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+2
+//- - - - - - - - -//
+> [!TIP]
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-TIP">
+<p class="markdown-alert_title markdown-alert_title-TIP">💡 Tip</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+3
+//- - - - - - - - -//
+> [!IMPORTANT]
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-IMPORTANT">
+<p class="markdown-alert_title markdown-alert_title-IMPORTANT">🔔 Important</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+4
+//- - - - - - - - -//
+> [!WARNING]
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-WARNING">
+<p class="markdown-alert_title markdown-alert_title-WARNING">📣 Warning</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+5
+//- - - - - - - - -//
+> [!CAUTION]
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-CAUTION">
+<p class="markdown-alert_title markdown-alert_title-CAUTION">💣 Caution</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+6
+//- - - - - - - - -//
+> [!DUMMY]
+//- - - - - - - - -//
+<blockquote>
+<p>[!DUMMY]</p>
+</blockquote>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+7: 2paragraph
+//- - - - - - - - -//
+> [!NOTE]
+> test1
+>
+> test2
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<p>test1</p>
+<p>test2</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+8: 2lines
+//- - - - - - - - -//
+>    [!NOTE]
+>    test
+>    test
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<p>test
+test</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+9: 5space indent
+//- - - - - - - - -//
+>     [!NOTE]
+>     test
+//- - - - - - - - -//
+<blockquote>
+<pre><code>[!NOTE]
+test
+</code></pre>
+</blockquote>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+10: tab indent
+//- - - - - - - - -//
+>	[!NOTE]
+>	test
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<p>test</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+11: tab+1space((4-1) +1 = 4) indent
+//- - - - - - - - -//
+>	 [!NOTE]
+>	 test
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<p>test</p>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+12: tab+2space((4-1) + 2 = 5) indent
+//- - - - - - - - -//
+>	  [!NOTE]
+>	  test
+//- - - - - - - - -//
+<blockquote>
+<pre><code>[!NOTE]
+test
+</code></pre>
+</blockquote>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+13: unnecessary additions
+//- - - - - - - - -//
+> [!NOTE] a
+//- - - - - - - - -//
+<blockquote>
+<p>[!NOTE] a</p>
+</blockquote>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+14: nest blockquote
+//- - - - - - - - -//
+> [!NOTE]
+> > test
+> > test
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<blockquote>
+<p>test
+test</p>
+</blockquote>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+15: nest alerts
+//- - - - - - - - -//
+> [!NOTE]
+> > [!NOTE]
+> > test
+> > > [!NOTE]
+> > > test
+//- - - - - - - - -//
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<p>test</p>
+<div class="markdown-alert markdown-alert-NOTE">
+<p class="markdown-alert_title markdown-alert_title-NOTE">🔍 Note</p>
+<p>test</p>
+</div>
+</div>
+</div>
+//= = = = = = = = = = = = = = = = = = = = = = = =//

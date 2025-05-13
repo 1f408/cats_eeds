@@ -5,8 +5,6 @@ import (
 	"io"
 
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/parser"
-	gm_html "github.com/yuin/goldmark/renderer/html"
 	"golang.org/x/net/html"
 )
 
@@ -36,19 +34,9 @@ func convertHtmlToText(html_bin []byte, w io.Writer) error {
 	return convertHtmlNodeText(root, w)
 }
 
-func convertMdToText(value []byte, w io.Writer) error {
-	p := goldmark.New(
-		goldmark.WithExtensions(),
-		goldmark.WithParserOptions(
-			parser.WithAttribute(),
-		),
-		goldmark.WithRendererOptions(
-			gm_html.WithXHTML(),
-			gm_html.WithUnsafe(),
-		),
-	)
+func convertMdToText(parser goldmark.Markdown, value []byte, w io.Writer) error {
 	var html_buf bytes.Buffer
-	if err := p.Convert(value, &html_buf); err != nil {
+	if err := parser.Convert(value, &html_buf); err != nil {
 		return err
 	}
 

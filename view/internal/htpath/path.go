@@ -29,12 +29,17 @@ type HttpPath struct {
 
 var ErrBadRequestType = errors.New("bad request type")
 var ErrBadIndexBase = errors.New("bad index base")
+var ErrInvalidDirRequest = errors.New("invalid directory request")
+
+func is_dir_fs(req string) bool {
+	return req == "." || rpath.IsDir(req)
+}
 
 func New(fsys fs.FS, root string, req string, index string) (*HttpPath, error) {
 	root = rpath.SetDir(root)
 	req = rpath.Clean(req)
 	index = rpath.Clean(index)
-	if rpath.IsDir(index) {
+	if is_dir_fs(index) {
 		return nil, ErrBadIndexBase
 	}
 
@@ -51,19 +56,18 @@ func new_by_rpath(fsys fs.FS, root string, req string, index string) (*HttpPath,
 	var dir string
 	var file string
 
-	is_dir := rpath.IsDir(req)
+	is_dir := is_dir_fs(req)
 
 	req_fi, req_err := unifs.Stat(fsys, path.Join(root, req))
 	if req_err != nil {
 		return nil, req_err
 	}
-	if req_fi.IsDir() {
-		if !is_dir {
-			req = rpath.SetDir(req)
-			is_dir = true
+	if req_fi.IsDir() != is_dir {
+		if is_dir {
+			return nil, ErrBadRequestType
+		} else {
+			return nil, ErrInvalidDirRequest
 		}
-	} else if is_dir {
-		return nil, ErrBadRequestType
 	}
 	mod_time := req_fi.ModTime()
 

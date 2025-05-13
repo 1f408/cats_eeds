@@ -13,11 +13,15 @@ import (
 
 	"github.com/1f408/cats_eeds/md2html"
 	"github.com/1f408/cats_eeds/upath"
-
 	"github.com/1f408/cats_eeds/view/internal/dirview"
 	"github.com/1f408/cats_eeds/view/internal/htpath"
 	"github.com/1f408/cats_eeds/view/internal/mtable"
+	"github.com/1f408/cats_eeds/view/internal/tmplext"
 )
+
+func is_abs_dir_path(p string) bool {
+	return rpath.Clean(p) == p && rpath.IsDir(p) && len(p) > 0 && p[0] == '/'
+}
 
 func new_err(format string, v ...interface{}) error {
 	return errors.New(fmt.Sprintf(format, v...))
@@ -29,9 +33,10 @@ type MdView struct {
 	SocketType string
 	SocketPath string
 
-	CacheControl string
-	UrlTopPath   string
-	UrlLibPath   string
+	CacheControl         string
+	UrlTopPath           string
+	UrlLibPath           string
+	DirectoryRedirection bool
 
 	DocumentRoot upath.UPath
 
@@ -42,12 +47,19 @@ type MdView struct {
 	SvgIconPath  upath.UPath
 	Md2Html      *md2html.Md2Html
 
-	MimeExtTable   *mtable.MimeExtTable
-	MarkdownExt    []string
-	MarkdownConfig *md2html.MdConfig
+	MimeExtTable      *mtable.MimeExtTable
+	MarkdownExt       []string
+	MarkdownConfig    *md2html.MdConfig
+	CustomPageConfig  *md2html.CustomPageConfig
+	PrintPaperMapping *md2html.PrintPaperMapping
 
 	ThemeStyle   string
+	PageStyle    string
+	PrintSizeCss string
+	PrintZoom    float32
+
 	LocationNavi string
+	TocNavi      string
 
 	DirectoryViewMode       string
 	DirectoryViewRoots      []upath.UPath
@@ -71,8 +83,13 @@ func newMdViewDefault() *MdView {
 	mdv.MainTmplName = "mdview.tmpl"
 	mdv.MarkdownExt = []string{"md", "markdown"}
 	mdv.ThemeStyle = "radio"
+	mdv.PageStyle = ""
+	mdv.PrintSizeCss = ""
+
 	mdv.LocationNavi = "dirs"
+	mdv.TocNavi = "details"
 	mdv.DirectoryViewMode = "autoindex"
+
 	mdv.TimeStampFormat = "%F %T"
 	mdv.TextViewMode = "html"
 
@@ -91,13 +108,20 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 		return nil, new_err("Bad socket type: %s", mdv.SocketType)
 	}
 
+	mdv.DirectoryRedirection = cfg.DirectoryRedirection
 	mdv.CacheControl = cfg.CacheControl
 
 	if cfg.UrlTopPath != "" {
-		mdv.UrlTopPath = rpath.SetDir("/" + cfg.UrlTopPath)
+		mdv.UrlTopPath = cfg.UrlTopPath
+	}
+	if !is_abs_dir_path(mdv.UrlTopPath) {
+		return nil, new_err("Bad url_top_path directory: %s", mdv.UrlTopPath)
 	}
 	if cfg.UrlLibPath != "" {
-		mdv.UrlLibPath = rpath.SetDir("/" + cfg.UrlLibPath)
+		mdv.UrlLibPath = cfg.UrlLibPath
+	}
+	if !is_abs_dir_path(mdv.UrlLibPath) {
+		return nil, new_err("Bad url_lib_path directory: %s", mdv.UrlLibPath)
 	}
 
 	if !cfg.DocumentRoot.IsZero() {
@@ -107,7 +131,7 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 		return nil, new_err("Must document root")
 	}
 	if fi, err := mdv.DocumentRoot.Stat(mdv.SystemFS); err != nil || !fi.IsDir() {
-		return nil, new_err("Not found root dirctory: %s", mdv.DocumentRoot.String())
+		return nil, new_err("Not found document root dirctory: %s", mdv.DocumentRoot.String())
 	}
 
 	if cfg.IndexName != "" {
@@ -192,11 +216,9 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 	}
 
 	mdv.OriginTmpl = template.New("")
-	tmpl_funcs := template.FuncMap{
-		"once":      DummyTmplOnce,
-		"svg_icon":  mdv.TmplSvgIcon,
-		"file_type": func(s string) string { return "" },
-	}
+	tmpl_funcs := template.FuncMap{}
+	tmplext.AddDefaultFunc(tmpl_funcs, mdv.SystemFS, mdv.SvgIconPath)
+
 	mdv.OriginTmpl = mdv.OriginTmpl.Funcs(tmpl_funcs)
 	mdv.OriginTmpl, err = mdv.OriginTmpl.ParseFS(mdv.SystemFS, upath.FSPaths(cfg.TmplPaths)...)
 
@@ -229,14 +251,42 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 	mdv.MarkdownConfig = cfg.MarkdownConfig.Value
 	mdv.Md2Html = md2html.NewMd2Html(mdv.MarkdownConfig)
 
+	mdv.CustomPageConfig = cfg.CustomPageConfig.Value
+	mdv.PrintPaperMapping = mdv.CustomPageConfig.PrintPaper.Mapping.Value
+
 	if cfg.ThemeStyle != "" {
 		mdv.ThemeStyle = cfg.ThemeStyle
 	}
 	switch mdv.ThemeStyle {
 	case "radio":
+	case "load":
 	case "os":
 	default:
 		return nil, new_err("Bad ThemeStyle: %s", mdv.ThemeStyle)
+	}
+
+	if cfg.PageStyle != "" {
+		mdv.PageStyle = cfg.PageStyle
+	}
+	if strings.ContainsRune(mdv.PageStyle, '/') {
+		return nil, new_err("Bad page style: %s", mdv.PageStyle)
+	}
+
+	print_paper := mdv.CustomPageConfig.PrintPaper.Default.PaperType
+	if print_paper != "" {
+		css, ok := mdv.PrintPaperMapping.GetCss(print_paper)
+		if !ok {
+			return nil, new_err("Bad page size: %s", print_paper)
+		}
+		mdv.PrintSizeCss = css
+	}
+
+	print_zoom := mdv.CustomPageConfig.PrintPaper.Default.PrintZoom
+	if print_zoom != 0.0 {
+		mdv.PrintZoom = print_zoom
+	}
+	if mdv.PrintZoom < 0 {
+		return nil, new_err("Bad print zoom: %f", mdv.PrintZoom)
 	}
 
 	if cfg.LocationNavi != "" {
@@ -247,6 +297,17 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 	case "dirs":
 	default:
 		return nil, new_err("Bad location navi type: %s", mdv.LocationNavi)
+	}
+
+	if cfg.TocNavi != "" {
+		mdv.TocNavi = cfg.TocNavi
+	}
+	switch mdv.TocNavi {
+	case "none":
+	case "static":
+	case "details":
+	default:
+		return nil, new_err("Bad toc navi type: %s", mdv.TocNavi)
 	}
 
 	sum, err := mdv.SumTemplate()

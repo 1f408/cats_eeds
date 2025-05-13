@@ -1,4 +1,4 @@
-package mdview
+package tmplext
 
 type tmplOnce struct {
 	flags map[string]struct{}

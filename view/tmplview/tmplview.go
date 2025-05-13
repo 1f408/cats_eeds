@@ -15,11 +15,15 @@ import (
 	"github.com/1f408/cats_eeds/authz"
 	"github.com/1f408/cats_eeds/md2html"
 	"github.com/1f408/cats_eeds/upath"
-
 	"github.com/1f408/cats_eeds/view/internal/dirview"
 	"github.com/1f408/cats_eeds/view/internal/htpath"
 	"github.com/1f408/cats_eeds/view/internal/mtable"
+	"github.com/1f408/cats_eeds/view/internal/tmplext"
 )
+
+func is_abs_dir_path(p string) bool {
+	return rpath.Clean(p) == p && rpath.IsDir(p) && len(p) > 0 && p[0] == '/'
+}
 
 func new_err(format string, v ...interface{}) error {
 	return errors.New(fmt.Sprintf(format, v...))
@@ -31,9 +35,10 @@ type TmplView struct {
 
 	SystemFS fs.FS
 
-	CacheControl string
-	UrlTopPath   string
-	UrlLibPath   string
+	CacheControl         string
+	UrlTopPath           string
+	UrlLibPath           string
+	DirectoryRedirection bool
 
 	UserMap         *authz.UserMap
 	AuthnUserHeader string
@@ -47,12 +52,19 @@ type TmplView struct {
 	MdTmplName string
 	Md2Html    *md2html.Md2Html
 
-	MimeExtTable   *mtable.MimeExtTable
-	MarkdownExt    []string
-	MarkdownConfig *md2html.MdConfig
+	MimeExtTable      *mtable.MimeExtTable
+	MarkdownExt       []string
+	MarkdownConfig    *md2html.MdConfig
+	CustomPageConfig  *md2html.CustomPageConfig
+	PrintPaperMapping *md2html.PrintPaperMapping
 
 	ThemeStyle   string
+	PageStyle    string
+	PrintSizeCss string
+	PrintZoom    float32
+
 	LocationNavi string
+	TocNavi      string
 
 	DirectoryViewMode       string
 	DirectoryViewRoots      []upath.UPath
@@ -83,7 +95,11 @@ func newTmplViewDefault() *TmplView {
 	tmpv.MarkdownExt = []string{"md", "markdown"}
 
 	tmpv.ThemeStyle = "radio"
+	tmpv.PageStyle = ""
+	tmpv.PrintSizeCss = ""
+
 	tmpv.LocationNavi = "dirs"
+	tmpv.TocNavi = "details"
 
 	tmpv.DirectoryViewMode = "autoindex"
 	tmpv.TimeStampFormat = "%F %T"
@@ -113,13 +129,20 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 		return nil, new_err("Bad socket type: %s", tmpv.SocketType)
 	}
 
+	tmpv.DirectoryRedirection = cfg.DirectoryRedirection
 	tmpv.CacheControl = cfg.CacheControl
 
 	if cfg.UrlTopPath != "" {
-		tmpv.UrlTopPath = rpath.SetDir("/" + cfg.UrlTopPath)
+		tmpv.UrlTopPath = cfg.UrlTopPath
+	}
+	if !is_abs_dir_path(tmpv.UrlTopPath) {
+		return nil, new_err("Bad url_top_path: %s", cfg.UrlTopPath)
 	}
 	if cfg.UrlLibPath != "" {
-		tmpv.UrlLibPath = rpath.SetDir("/" + cfg.UrlLibPath)
+		tmpv.UrlLibPath = cfg.UrlLibPath
+	}
+	if !is_abs_dir_path(tmpv.UrlLibPath) {
+		return nil, new_err("Bad url_lib_path: %s", cfg.UrlLibPath)
 	}
 
 	if cfg.Authz.AuthnUserHeader != "" {
@@ -155,7 +178,7 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 		return nil, new_err("Must document root")
 	}
 	if fi, err := tmpv.DocumentRoot.Stat(tmpv.SystemFS); err != nil || !fi.IsDir() {
-		return nil, new_err("Not found root dirctory: %s", tmpv.DocumentRoot.String())
+		return nil, new_err("Not found document root: %s", tmpv.DocumentRoot.String())
 	}
 
 	if cfg.Tmpl.IndexName != "" {
@@ -254,13 +277,11 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 
 	tmpv.OriginTmpl = template.New("")
 	tmpl_funcs := template.FuncMap{
-		"once":      DummyTmplOnce,
-		"svg_icon":  tmpv.TmplSvgIcon,
-		"file_type": func(s string) string { return "" },
-		"in_group":  func(grp string) bool { return false },
-		"in_user":   func() bool { return false },
-		"cat_ui":    tmpv.CatUi,
+		"in_group": func(grp string) bool { return false },
+		"in_user":  func() bool { return false },
+		"cat_ui":   tmpv.CatUi,
 	}
+	tmplext.AddDefaultFunc(tmpl_funcs, tmpv.SystemFS, tmpv.SvgIconPath)
 	tmpv.OriginTmpl = tmpv.OriginTmpl.Funcs(tmpl_funcs)
 
 	tmpv.OriginTmpl, err = tmpv.OriginTmpl.ParseFS(
@@ -288,15 +309,42 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 
 	tmpv.MarkdownConfig = cfg.Tmpl.MarkdownConfig.Value
 	tmpv.Md2Html = md2html.NewMd2Html(tmpv.MarkdownConfig)
+	tmpv.CustomPageConfig = cfg.Tmpl.CustomPageConfig.Value
+	tmpv.PrintPaperMapping = tmpv.CustomPageConfig.PrintPaper.Mapping.Value
 
 	if cfg.Tmpl.ThemeStyle != "" {
 		tmpv.ThemeStyle = cfg.Tmpl.ThemeStyle
 	}
 	switch tmpv.ThemeStyle {
 	case "radio":
+	case "load":
 	case "os":
 	default:
 		return nil, new_err("Bad ThemeStyle: %s", tmpv.ThemeStyle)
+	}
+
+	if cfg.Tmpl.PageStyle != "" {
+		tmpv.PageStyle = cfg.Tmpl.PageStyle
+	}
+	if strings.ContainsRune(tmpv.PageStyle, '/') {
+		return nil, new_err("Bad page style: %s", tmpv.PageStyle)
+	}
+
+	paper_type_default := tmpv.CustomPageConfig.PrintPaper.Default.PaperType
+	if paper_type_default != "" {
+		css, ok := tmpv.PrintPaperMapping.GetCss(paper_type_default)
+		if !ok {
+			return nil, new_err("Bad page size: %s", paper_type_default)
+		}
+		tmpv.PrintSizeCss = css
+	}
+
+	print_zoom_default := tmpv.CustomPageConfig.PrintPaper.Default.PrintZoom
+	if print_zoom_default != 0.0 {
+		tmpv.PrintZoom = print_zoom_default
+	}
+	if tmpv.PrintZoom < 0 {
+		return nil, new_err("Bad print zoom: %f", tmpv.PrintZoom)
 	}
 
 	if cfg.Tmpl.LocationNavi != "" {
@@ -307,6 +355,17 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 	case "dirs":
 	default:
 		return nil, new_err("Bad location navi type: %s", tmpv.LocationNavi)
+	}
+
+	if cfg.Tmpl.TocNavi != "" {
+		tmpv.TocNavi = cfg.Tmpl.TocNavi
+	}
+	switch tmpv.TocNavi {
+	case "none":
+	case "static":
+	case "details":
+	default:
+		return nil, new_err("Bad toc navi type: %s", tmpv.TocNavi)
 	}
 
 	sum, err := tmpv.SumTemplate()
