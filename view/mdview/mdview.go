@@ -72,6 +72,7 @@ type MdView struct {
 
 	ConfigModTime time.Time
 	TemplateTag   []byte
+	SystemHtmlIds []string
 }
 
 func newMdViewDefault() *MdView {
@@ -249,7 +250,6 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 	}
 
 	mdv.MarkdownConfig = cfg.MarkdownConfig.Value
-	mdv.Md2Html = md2html.NewMd2Html(mdv.MarkdownConfig)
 
 	mdv.CustomPageConfig = cfg.CustomPageConfig.Value
 	mdv.PrintPaperMapping = mdv.CustomPageConfig.PrintPaper.Mapping.Value
@@ -315,7 +315,13 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 		return nil, new_err("Template execute error: %s", err)
 	}
 
-	mdv.TemplateTag = sum
+	mdv.TemplateTag = sum.Sha256
+	mdv.SystemHtmlIds = sum.SystemIds
+
+	mdv.Md2Html = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
+		MdConfig:  mdv.MarkdownConfig,
+		SystemIds: mdv.SystemHtmlIds,
+	})
 
 	return mdv, nil
 }

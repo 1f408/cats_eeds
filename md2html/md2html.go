@@ -13,12 +13,21 @@ type Md2Html struct {
 	cfg       *MdConfig
 	md_parser goldmark.Markdown
 	sani      *sanitaizer
+	sys_ids   []string
 }
 
-func NewMd2Html(mc *MdConfig) *Md2Html {
+type Md2HtmlConfig struct {
+	MdConfig *MdConfig
+	SystemIds []string
+}
+
+func NewMd2Html(cfg *Md2HtmlConfig) *Md2Html {
+	mc := cfg.MdConfig
 	if mc == nil {
-		*mc = *(NewMdConfigDefault())
+		mc = NewMdConfigDefault()
 	}
+	sys_ids := cfg.SystemIds
+
 	parser_exts := NewParserExts(mc)
 
 	md_parser := goldmark.New(
@@ -37,6 +46,7 @@ func NewMd2Html(mc *MdConfig) *Md2Html {
 		cfg:       mc,
 		md_parser: md_parser,
 		sani:      newSanitizer(),
+		sys_ids: sys_ids,
 	}
 }
 
@@ -44,7 +54,7 @@ func (m2h *Md2Html) md2html(md []byte) []byte {
 	var buf bytes.Buffer
 	opts := []parser.ParseOption{}
 
-	new_ids, err := NewAutoIds(m2h.md_parser, m2h.cfg.AutoIds.Type)
+	new_ids, err := NewAutoIds(m2h.md_parser, m2h.cfg.AutoIds.Type, m2h.sys_ids)
 	if err != nil {
 		panic(fmt.Errorf("Md2Html config error: %s", err))
 	}
