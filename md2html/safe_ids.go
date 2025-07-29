@@ -21,10 +21,15 @@ func init() {
 	AutoIdsMap["safe"] = NewSafeIDs
 }
 
-func NewSafeIDs(p goldmark.Markdown) parser.IDs {
-	return &SafeIDs{
+func NewSafeIDs(p goldmark.Markdown, sys_ids []string) parser.IDs {
+	vals := map[string]bool{}
+	for _, id := range sys_ids {
+		vals[id] = true
+	}
+
+	return &GfmIDs{
 		parser: p,
-		values: map[string]bool{},
+		values: vals,
 	}
 }
 

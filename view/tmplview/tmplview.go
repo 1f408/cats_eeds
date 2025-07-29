@@ -81,6 +81,7 @@ type TmplView struct {
 
 	ConfigModTime time.Time
 	TemplateTag   []byte
+	SystemHtmlIds []string
 }
 
 func newTmplViewDefault() *TmplView {
@@ -308,7 +309,6 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 	}
 
 	tmpv.MarkdownConfig = cfg.Tmpl.MarkdownConfig.Value
-	tmpv.Md2Html = md2html.NewMd2Html(tmpv.MarkdownConfig)
 	tmpv.CustomPageConfig = cfg.Tmpl.CustomPageConfig.Value
 	tmpv.PrintPaperMapping = tmpv.CustomPageConfig.PrintPaper.Mapping.Value
 
@@ -373,7 +373,13 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 		return nil, new_err("Template execute error: %s", err)
 	}
 
-	tmpv.TemplateTag = sum
+	tmpv.TemplateTag = sum.Sha256
+	tmpv.SystemHtmlIds = sum.SystemIds
+
+	tmpv.Md2Html = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
+		MdConfig: tmpv.MarkdownConfig,
+		SystemIds: tmpv.SystemHtmlIds,
+	})
 
 	return tmpv, nil
 }

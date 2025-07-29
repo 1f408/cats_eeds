@@ -331,7 +331,10 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 			}
 			if strings.HasPrefix(name, mdv.DocumentRoot.String()) {
 				if md_cfg, err := md2html.NewMdConfig(mdv.SystemFS, name); err == nil {
-					m2h = md2html.NewMd2Html(md_cfg)
+					m2h = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
+						MdConfig:  md_cfg,
+						SystemIds: mdv.SystemHtmlIds,
+					})
 				}
 			}
 		}
@@ -436,7 +439,12 @@ func tmplLookups(tmpl *template.Template, names ...string) *template.Template {
 	return tt
 }
 
-func (mdv *MdView) SumTemplate() ([]byte, error) {
+type TmplSum struct {
+	Sha256    []byte
+	SystemIds []string
+}
+
+func (mdv *MdView) SumTemplate() (*TmplSum, error) {
 	tmpl, cerr := mdv.OriginTmpl.Clone()
 	if cerr != nil {
 		return nil, cerr
@@ -462,22 +470,31 @@ func (mdv *MdView) SumTemplate() ([]byte, error) {
 		Path:      mdv.UrlTopPath,
 		PathLinks: links.NewLinks("/"),
 		LinkMenu:  nil,
-		Text:      "",
+		Text:      "TEST text\n",
 		TextType:  "md",
-		Title:     "",
-		Toc:       "",
+		Title:     "TEST title",
+		Toc:       "<ul></ul>",
 		Files:     nil,
 		IsOpen:    false,
 
 		CustomParam: md2html.CustomParam{},
 	}
 
+	var b bytes.Buffer
 	h_ctx := sha256.New()
-	if e := tmpl.Execute(h_ctx, tmpl_param); e != nil {
+	all_w := io.MultiWriter(&b, h_ctx)
+
+	if e := tmpl.Execute(all_w, tmpl_param); e != nil {
 		return nil, e
 	}
+	sha256_sum := h_ctx.Sum(nil)
 
-	return h_ctx.Sum(nil), nil
+	ids, fe := md2html.FindHtmlIds(bytes.NewReader(b.Bytes()))
+	if fe != nil {
+		return nil, fe
+	}
+
+	return &TmplSum{Sha256: sha256_sum, SystemIds: ids}, nil
 }
 
 var ErrUnsupportedSocketType = errors.New("unsupported socket type.")

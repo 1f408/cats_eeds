@@ -20,10 +20,15 @@ func init() {
 	AutoIdsMap["gfm"] = NewGfmIDs
 }
 
-func NewGfmIDs(p goldmark.Markdown) parser.IDs {
+func NewGfmIDs(p goldmark.Markdown, sys_ids []string) parser.IDs {
+	vals := map[string]bool{}
+	for _, id := range sys_ids {
+		vals[id] = true
+	}
+
 	return &GfmIDs{
 		parser: p,
-		values: map[string]bool{},
+		values: vals,
 	}
 }
 
@@ -42,13 +47,19 @@ func (ids *GfmIDs) toValid(value []byte) []byte {
 
 	dash_mode := false
 	for _, r := range string(value) {
-		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+		if r == '-' || r == '_' || unicode.IsLetter(r) || unicode.IsNumber(r) {
 			if dash_mode && len(ancher) > 0 {
 				ancher = append(ancher, '-')
 			}
 
 			dash_mode = false
 			ancher = append(ancher, string(unicode.ToLower(r))...)
+		} else if r != ' ' {
+			if dash_mode && len(ancher) > 0 {
+				ancher = append(ancher, '-')
+			}
+
+			dash_mode = false
 		} else {
 			dash_mode = true
 		}

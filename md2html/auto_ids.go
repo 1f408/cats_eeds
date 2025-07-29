@@ -9,13 +9,13 @@ import (
 
 var ErrBadAutoIdsType = errors.New("bad auto IDs type")
 
-var AutoIdsMap = map[string]func(parser goldmark.Markdown) parser.IDs{}
+var AutoIdsMap = map[string]func(parser goldmark.Markdown, sys_ids []string) parser.IDs{}
 
-func NewAutoIds(parser goldmark.Markdown, id_type string) (parser.IDs, error) {
+func NewAutoIds(parser goldmark.Markdown, id_type string, sys_ids []string) (parser.IDs, error) {
 	new_func, ok := AutoIdsMap[id_type]
 	if !ok {
 		return nil, ErrBadAutoIdsType
 	}
 
-	return new_func(parser), nil
+	return new_func(parser, sys_ids), nil
 }
