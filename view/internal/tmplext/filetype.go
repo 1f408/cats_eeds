@@ -3,7 +3,7 @@ package tmplext
 import (
 	"path"
 
-	"github.com/1f408/cats_eeds/view/internal/htpath"
+	"github.com/1f408/cats_eeds/internal/ftype"
 )
 
 func TmplFileType(name string) string {
@@ -26,7 +26,7 @@ func TmplFileType(name string) string {
 }
 
 func ext2file_type(ext string) string {
-	kind, _ := htpath.GetFileKindByExt(ext)
+	kind, _ := ftype.GetFileKindByExt(ext)
 
 	switch kind {
 	default:

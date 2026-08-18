@@ -1,0 +1,78 @@
+1
+//- - - - - - - - -//
+[!INCLUDE [title](include\.md)]
+//- - - - - - - - -//
+<p><code>include: /var/www/html/include.md</code></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+2
+//- - - - - - - - -//
+[!INCLUDE [title](</include.md>)]
+//- - - - - - - - -//
+<p><code>include: /include.md</code></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+3
+//- - - - - - - - -//
+[!INCLUDE [title](include.md]
+//- - - - - - - - -//
+<p>[!INCLUDE [title](include.md]</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+4
+//- - - - - - - - -//
+[!INCLUDE [title](<include>.md>)]
+//- - - - - - - - -//
+<p>[!INCLUDE [title](<include>.md&gt;)]</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+5
+//- - - - - - - - -//
+[!INCLUDE [title(include.md)]
+//- - - - - - - - -//
+<p>[!INCLUDE [title(include.md)]</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+6
+//- - - - - - - - -//
+[!INCLUDE [title] (include.md)]
+//- - - - - - - - -//
+<p>[!INCLUDE [title] (include.md)]</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+7
+//- - - - - - - - -//
+[!INCLUDE [title](include.md]
+//- - - - - - - - -//
+<p>[!INCLUDE [title](include.md]</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+8
+//- - - - - - - - -//
+[!INCLUDE [title](loop.md)]
+//- - - - - - - - -//
+<p>title</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+9
+//- - - - - - - - -//
+[!INCLUDE [**title**](loop.md)]
+//- - - - - - - - -//
+<p><strong>title</strong></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+10
+//- - - - - - - - -//
+[!INCLUDE [`title`](https://example.com/loop.md)]
+//- - - - - - - - -//
+<p><code>title</code></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+11
+//- - - - - - - - -//
+[!INCLUDE [![img](test.png)](loop.md)]
+//- - - - - - - - -//
+<p><img src="test.png" alt="img"></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+12
+//- - - - - - - - -//
+[!INCLUDE [[**title**](include.md)](loop.md)]
+//- - - - - - - - -//
+<p><a href="include.md"><strong>title</strong></a></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+13
+//- - - - - - - - -//
+[!INCLUDE [[!INCLUDE [**title**](include.md)]](loop.md)]
+//- - - - - - - - -//
+<p><code>include: /var/www/html/include.md</code></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//

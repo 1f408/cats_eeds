@@ -11,18 +11,24 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/util"
 
-	alerts "github.com/1f408/cats_eeds/md2html/alerts"
+	"github.com/1f408/cats_eeds/md2html/alerts"
+	"github.com/1f408/cats_eeds/md2html/dt_table"
 	md_embed "github.com/1f408/cats_eeds/md2html/embed"
-	tasklist "github.com/1f408/cats_eeds/md2html/tasklist"
+	"github.com/1f408/cats_eeds/md2html/footnote"
+	"github.com/1f408/cats_eeds/md2html/ms_include"
+	"github.com/1f408/cats_eeds/md2html/tasklist"
+	"github.com/1f408/cats_eeds/md2html/uniqid"
 )
 
-func NewParserExts(mc *MdConfig) []goldmark.Extender {
+func NewParserExts(mc *MdConfig, id_tbl uniqid.IdsTable, inc_cfg *IncludeConfig) []goldmark.Extender {
 	if mc == nil {
-		*mc = *(NewMdConfigDefault())
+		mc = NewMdConfigDefault()
 	}
 
 	parser_exts := []goldmark.Extender{}
-	if mc.Extension.Table {
+	if mc.Extension.DataTable {
+		parser_exts = append(parser_exts, dt_table.Table)
+	} else if mc.Extension.Table {
 		parser_exts = append(parser_exts, extension.Table)
 	}
 	if mc.Extension.Strikethrough {
@@ -35,14 +41,14 @@ func NewParserExts(mc *MdConfig) []goldmark.Extender {
 		parser_exts = append(parser_exts, extension.DefinitionList)
 	}
 	if mc.Extension.Footnote {
-		fn_ext := []extension.FootnoteOption{}
+		fn_ext := []footnote.FootnoteOption{}
 		if mc.Footnote.BacklinkHTML != "" {
 			fn_ext = append(fn_ext,
-				extension.WithFootnoteBacklinkHTML(
+				footnote.WithFootnoteBacklinkHTML(
 					[]byte(mc.Footnote.BacklinkHTML)))
 		}
 
-		parser_exts = append(parser_exts, extension.NewFootnote(fn_ext...))
+		parser_exts = append(parser_exts, footnote.NewFootnote(id_tbl, fn_ext...))
 	}
 	if mc.Extension.Emoji {
 		em_list := emoji_def.NewEmojis()
@@ -104,13 +110,15 @@ func NewParserExts(mc *MdConfig) []goldmark.Extender {
 		for _, p := range mc.Embed.Rules.Value.Iframe {
 			ifm_opts = append(ifm_opts,
 				md_embed.IframeOptions{
-					SiteId: p.SiteId,
-					Host:   p.Host,
-					Type:   p.Type,
-					Path:   p.Path,
-					Query:  p.Query,
-					Regex:  p.Regex,
-					Player: p.Player,
+					SiteId:         p.SiteId,
+					Host:           p.Host,
+					Type:           p.Type,
+					Path:           p.Path,
+					Query:          p.Query,
+					Regex:          p.Regex,
+					Player:         p.Player,
+					Allow:          p.Allow,
+					Referrerpolicy: p.Referrerpolicy,
 				})
 		}
 
@@ -127,6 +135,10 @@ func NewParserExts(mc *MdConfig) []goldmark.Extender {
 		parser_exts = append(parser_exts, alerts.NewAlertBlock(
 			alerts.WithTitleHtmlMaping(alerts.TitleHtmlMapping(*mc.Alerts.TitleMapping.Value)),
 		))
+	}
+	if mc.Extension.MsInclude {
+		parser_exts = append(parser_exts, ms_include.NewMsInclude(
+			inc_cfg.ConvertHtml, inc_cfg.PathStack))
 	}
 
 	return parser_exts

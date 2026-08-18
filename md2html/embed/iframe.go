@@ -53,13 +53,15 @@ func (o *withEmbedIframeUrl) SetEmbedOption(c *EmbedConfig) {
 }
 
 type IframeOptions struct {
-	SiteId string
-	Host   string
-	Type   string
-	Path   string
-	Query  string
-	Regex  *regexp.Regexp
-	Player string
+	SiteId         string
+	Host           string
+	Type           string
+	Path           string
+	Query          string
+	Regex          *regexp.Regexp
+	Player         string
+	Allow          string
+	Referrerpolicy string
 }
 
 func WithEmbedIframeUrl(ops []IframeOptions) EmbedOption {
@@ -71,14 +73,17 @@ func WithEmbedIframeUrl(ops []IframeOptions) EmbedOption {
 			pats = []*UrlPattern{}
 		}
 
+
 		pats = append(pats,
 			&UrlPattern{
-				SiteId: o.SiteId,
-				Type:   o.Type,
-				Path:   o.Path,
-				Query:  o.Query,
-				Regex:  o.Regex,
-				Player: o.Player,
+				SiteId:         o.SiteId,
+				Type:           o.Type,
+				Path:           o.Path,
+				Query:          o.Query,
+				Regex:          o.Regex,
+				Player:         o.Player,
+				Allow:          o.Allow,
+				Referrerpolicy: o.Referrerpolicy,
 			},
 		)
 		h2pat[o.Host] = pats

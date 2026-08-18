@@ -138,24 +138,28 @@ func (vo *VideoOpt) UnmarshalTOML(decode func(interface{}) error) error {
 }
 
 type IframeOpt struct {
-	SiteId string
-	Host   string
-	Type   string
-	Path   string         `toml:",omitempty"`
-	Query  string         `toml:",omitempty"`
-	Regex  *regexp.Regexp `toml:",omitempty"`
-	Player string
+	SiteId         string
+	Host           string
+	Type           string
+	Path           string         `toml:",omitempty"`
+	Query          string         `toml:",omitempty"`
+	Regex          *regexp.Regexp `toml:",omitempty"`
+	Player         string
+	Allow          string `toml:",omitempty"`
+	Referrerpolicy string `toml:",omitempty"`
 }
 
 func (ifo *IframeOpt) UnmarshalTOML(decode func(interface{}) error) error {
 	type rawIframeOpt struct {
-		SiteId string
-		Host   string
-		Type   string
-		Path   string `toml:",omitempty"`
-		Query  string `toml:",omitempty"`
-		Regex  string `toml:",omitempty"`
-		Player string
+		SiteId         string
+		Host           string
+		Type           string
+		Path           string `toml:",omitempty"`
+		Query          string `toml:",omitempty"`
+		Regex          string `toml:",omitempty"`
+		Player         string
+		Allow          string `toml:",omitempty"`
+		Referrerpolicy string `toml:",omitempty"`
 	}
 
 	var err error
@@ -179,6 +183,8 @@ func (ifo *IframeOpt) UnmarshalTOML(decode func(interface{}) error) error {
 	ifo.Query = rifo.Query
 	ifo.Regex = re
 	ifo.Player = rifo.Player
+	ifo.Allow = rifo.Allow
+	ifo.Referrerpolicy = rifo.Referrerpolicy
 
 	if ifo.Host == "" {
 		return fmt.Errorf("Missing 'host' parameter: %s", ifo.SiteId)

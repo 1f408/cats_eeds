@@ -1,4 +1,4 @@
-package htpath
+package ftype
 
 import (
 	"errors"

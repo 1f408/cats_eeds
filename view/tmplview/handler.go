@@ -438,7 +438,14 @@ func (tmpv *TmplView) writeView(req_path string, r_header Getter, w HttpWriter) 
 		doc_bin = buf.Bytes()
 		toc_bin = []byte{}
 	case "md":
-		m2h := tmpv.Md2Html
+		m2h := md2html.NewMd2Html(&md2html.Md2HtmlConfig{
+			MdConfig:    tmpv.MarkdownConfig,
+			SystemIds:   tmpv.SystemHtmlIds,
+			SystemFS:    tmpv.SystemFS,
+			FrontMatter: tmpv.CustomPageConfig.FrontMatter,
+			StartMdFile: htreq.FullDoc(),
+		})
+
 		if fm_param.MarkdownConfig != "" {
 			name := fm_param.MarkdownConfig
 			if name[0] != '/' {
@@ -446,10 +453,7 @@ func (tmpv *TmplView) writeView(req_path string, r_header Getter, w HttpWriter) 
 			}
 			if strings.HasPrefix(name, tmpv.DocumentRoot.String()) {
 				if md_cfg, err := md2html.NewMdConfig(tmpv.SystemFS, name); err == nil {
-					m2h = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
-						MdConfig:  md_cfg,
-						SystemIds: tmpv.SystemHtmlIds,
-					})
+					m2h = m2h.NewLocalSpec(md_cfg)
 				}
 			}
 		}

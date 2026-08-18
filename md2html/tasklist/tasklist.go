@@ -1,4 +1,4 @@
-package extension
+package tasklist
 
 import (
 	"regexp"
