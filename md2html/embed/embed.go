@@ -79,12 +79,14 @@ type NoExtPattern struct {
 }
 
 type UrlPattern struct {
-	SiteId string
-	Type   string
-	Path   string
-	Query  string
-	Regex  *regexp.Regexp
-	Player string
+	SiteId         string
+	Type           string
+	Path           string
+	Query          string
+	Regex          *regexp.Regexp
+	Player         string
+	Allow          string
+	Referrerpolicy string
 }
 
 var rePlayerId = regexp.MustCompile(`\$.`)
@@ -220,6 +222,12 @@ func (at *embedTransformer) transformNode(n ast.Node) (ast.WalkStatus, error) {
 			}
 
 			vn := NewIframe(img, pat.SiteId, vurl)
+			if pat.Allow != "" {
+				vn.SetAttributeString("allow", []byte(pat.Allow))
+			}
+			if pat.Referrerpolicy != "" {
+				vn.SetAttributeString("referrerpolicy", []byte(pat.Referrerpolicy))
+			}
 			n.Parent().ReplaceChild(n.Parent(), n, vn)
 			return ast.WalkContinue, nil
 		}

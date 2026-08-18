@@ -323,7 +323,14 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 		var cerr error
 		var md_title_bin []byte
 
-		m2h := mdv.Md2Html
+		m2h := md2html.NewMd2Html(&md2html.Md2HtmlConfig{
+			MdConfig:    mdv.MarkdownConfig,
+			SystemIds:   mdv.SystemHtmlIds,
+			SystemFS:    mdv.SystemFS,
+			FrontMatter: mdv.CustomPageConfig.FrontMatter,
+			StartMdFile: htreq.FullDoc(),
+		})
+
 		if fm_param.MarkdownConfig != "" {
 			name := fm_param.MarkdownConfig
 			if name[0] != '/' {
@@ -331,13 +338,11 @@ func (mdv *MdView) writeView(req_path string, r_header Getter, w HttpWriter) {
 			}
 			if strings.HasPrefix(name, mdv.DocumentRoot.String()) {
 				if md_cfg, err := md2html.NewMdConfig(mdv.SystemFS, name); err == nil {
-					m2h = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
-						MdConfig:  md_cfg,
-						SystemIds: mdv.SystemHtmlIds,
-					})
+					m2h = m2h.NewLocalSpec(md_cfg)
 				}
 			}
 		}
+
 		doc_bin, toc_bin, md_title_bin, cerr = m2h.Convert(raw_bin)
 		if cerr != nil {
 			w.Error("500 conversion failed: "+cerr.Error(), http.StatusInternalServerError)

@@ -13,10 +13,10 @@ import (
 	"github.com/l4go/rpath"
 
 	"github.com/1f408/cats_eeds/authz"
+	"github.com/1f408/cats_eeds/internal/ftype"
 	"github.com/1f408/cats_eeds/md2html"
 	"github.com/1f408/cats_eeds/upath"
 	"github.com/1f408/cats_eeds/view/internal/dirview"
-	"github.com/1f408/cats_eeds/view/internal/htpath"
 	"github.com/1f408/cats_eeds/view/internal/mtable"
 	"github.com/1f408/cats_eeds/view/internal/tmplext"
 )
@@ -50,7 +50,6 @@ type TmplView struct {
 	IndexName    string
 
 	MdTmplName string
-	Md2Html    *md2html.Md2Html
 
 	MimeExtTable      *mtable.MimeExtTable
 	MarkdownExt       []string
@@ -295,7 +294,7 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 		tmpv.MimeExtTable = cfg.Tmpl.MimeExtTable.Value
 	}
 	for ext, mtype := range *tmpv.MimeExtTable {
-		if e := htpath.SetExtMimeType(ext, mtype); e != nil {
+		if e := ftype.SetExtMimeType(ext, mtype); e != nil {
 			return nil, new_err("Bad mime extension: %s", ext)
 		}
 	}
@@ -303,7 +302,7 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 		tmpv.MarkdownExt = cfg.Tmpl.MarkdownExt
 	}
 	for _, ext := range tmpv.MarkdownExt {
-		if e := htpath.SetMarkdownExt(ext); e != nil {
+		if e := ftype.SetMarkdownExt(ext); e != nil {
 			return nil, new_err("Bad file extension: %s", ext)
 		}
 	}
@@ -375,11 +374,6 @@ func NewTmplView(cfg *TmplViewConfig) (*TmplView, error) {
 
 	tmpv.TemplateTag = sum.Sha256
 	tmpv.SystemHtmlIds = sum.SystemIds
-
-	tmpv.Md2Html = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
-		MdConfig: tmpv.MarkdownConfig,
-		SystemIds: tmpv.SystemHtmlIds,
-	})
 
 	return tmpv, nil
 }

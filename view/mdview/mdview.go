@@ -11,10 +11,10 @@ import (
 
 	"github.com/l4go/rpath"
 
+	"github.com/1f408/cats_eeds/internal/ftype"
 	"github.com/1f408/cats_eeds/md2html"
 	"github.com/1f408/cats_eeds/upath"
 	"github.com/1f408/cats_eeds/view/internal/dirview"
-	"github.com/1f408/cats_eeds/view/internal/htpath"
 	"github.com/1f408/cats_eeds/view/internal/mtable"
 	"github.com/1f408/cats_eeds/view/internal/tmplext"
 )
@@ -45,7 +45,6 @@ type MdView struct {
 	HtmlTmpl     *template.Template
 	MainTmplName string
 	SvgIconPath  upath.UPath
-	Md2Html      *md2html.Md2Html
 
 	MimeExtTable      *mtable.MimeExtTable
 	MarkdownExt       []string
@@ -235,7 +234,7 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 		mdv.MimeExtTable = cfg.MimeExtTable.Value
 	}
 	for ext, mtype := range *mdv.MimeExtTable {
-		if e := htpath.SetExtMimeType(ext, mtype); e != nil {
+		if e := ftype.SetExtMimeType(ext, mtype); e != nil {
 			return nil, new_err("Bad mime extension: %s", ext)
 		}
 	}
@@ -244,7 +243,7 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 		mdv.MarkdownExt = cfg.MarkdownExt
 	}
 	for _, ext := range mdv.MarkdownExt {
-		if e := htpath.SetMarkdownExt(ext); e != nil {
+		if e := ftype.SetMarkdownExt(ext); e != nil {
 			return nil, new_err("Bad file extension: %s", ext)
 		}
 	}
@@ -317,11 +316,6 @@ func NewMdView(cfg *MdViewConfig) (*MdView, error) {
 
 	mdv.TemplateTag = sum.Sha256
 	mdv.SystemHtmlIds = sum.SystemIds
-
-	mdv.Md2Html = md2html.NewMd2Html(&md2html.Md2HtmlConfig{
-		MdConfig:  mdv.MarkdownConfig,
-		SystemIds: mdv.SystemHtmlIds,
-	})
 
 	return mdv, nil
 }

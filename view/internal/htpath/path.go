@@ -9,6 +9,8 @@ import (
 
 	"github.com/l4go/rpath"
 	"github.com/l4go/unifs"
+
+	"github.com/1f408/cats_eeds/internal/ftype"
 )
 
 type HttpPath struct {
@@ -93,7 +95,7 @@ func new_by_rpath(fsys fs.FS, root string, req string, index string) (*HttpPath,
 	kind := ""
 	mime := ""
 	if ext != "" {
-		kind, mime = GetFileKindByExt(ext)
+		kind, mime = ftype.GetFileKindByExt(ext)
 	}
 
 	return &HttpPath{

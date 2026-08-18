@@ -29,6 +29,8 @@ type ExtFlags struct {
 	GeoMap         bool `toml:",omitempty"`
 	Embed          bool `toml:",omitempty"`
 	Alerts         bool `toml:",omitempty"`
+	MsInclude      bool `toml:",omitempty"`
+	DataTable      bool `toml:",omitempty"`
 }
 
 type AutoIdsOptions struct {

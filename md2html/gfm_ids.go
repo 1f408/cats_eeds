@@ -1,45 +1,34 @@
 package md2html
 
 import (
-	"bytes"
-	"fmt"
 	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/1f408/cats_eeds/md2html/uniqid"
 )
 
 type GfmIDs struct {
 	parser goldmark.Markdown
-	values map[string]bool
+	tbl uniqid.IdsTable
 }
 
 func init() {
 	AutoIdsMap["gfm"] = NewGfmIDs
 }
 
-func NewGfmIDs(p goldmark.Markdown, sys_ids []string) parser.IDs {
-	vals := map[string]bool{}
-	for _, id := range sys_ids {
-		vals[id] = true
-	}
-
+func NewGfmIDs(p goldmark.Markdown, sys_id_tbl uniqid.IdsTable) parser.IDs {
 	return &GfmIDs{
 		parser: p,
-		values: vals,
+		tbl: sys_id_tbl,
 	}
 }
 
 func (ids *GfmIDs) toText(value []byte) []byte {
-	var txt_buf bytes.Buffer
-	err := convertMdToText(ids.parser, value, &txt_buf)
-	if err != nil {
-		return []byte("auto")
-	}
-
-	return txt_buf.Bytes()
+	return toPrintableBytes(value)
 }
 
 func (ids *GfmIDs) toValid(value []byte) []byte {
@@ -71,28 +60,14 @@ func (ids *GfmIDs) Generate(value []byte, kind ast.NodeKind) []byte {
 	value = ids.toText(value)
 	value = ids.toValid(value)
 	value = norm.NFC.Bytes(value)
-	if len(value) == 0 {
-		value = []byte("header")
-	}
 
-	if _, ok := ids.values[string(value)]; !ok {
-		ids.Put(value)
-		return value
-	}
+	return uniqid.Generate(ids.tbl, value)
+}
 
-rewrite:
-	for i := 1; ; i++ {
-		new_id := fmt.Sprintf("%s-%d", value, i)
-		if _, ok := ids.values[new_id]; !ok {
-			value = []byte(new_id)
-			break rewrite
-		}
-	}
-
-	ids.Put(value)
-	return value
+func (ids *GfmIDs) Has(value []byte) bool {
+	return ids.tbl.Has(value)
 }
 
 func (ids *GfmIDs) Put(value []byte) {
-	ids.values[string(value)] = true
+	ids.tbl.Put(value)
 }
